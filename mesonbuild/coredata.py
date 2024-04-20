@@ -379,41 +379,6 @@ class UserStdOption(UserComboOption):
         raise MesonException(f'None of values {candidates} are supported by the {self.lang.upper()} compiler. ' +
                              f'Possible values for option "{self.name}" are {self.choices}')
 
-@dataclass
-class OptionsView(abc.Mapping):
-    '''A view on an options dictionary for a given subproject and with overrides.
-    '''
-
-    # TODO: the typing here could be made more explicit using a TypeDict from
-    # python 3.8 or typing_extensions
-    options: KeyedOptionDictType
-    subproject: T.Optional[str] = None
-    overrides: T.Optional[T.Mapping[OptionKey, T.Union[str, int, bool, T.List[str]]]] = None
-
-    def __getitem__(self, key: OptionKey) -> UserOption:
-        # FIXME: This is fundamentally the same algorithm than interpreter.get_option_internal().
-        # We should try to share the code somehow.
-        key = key.evolve(subproject=self.subproject)
-        if not key.is_project():
-            opt = self.options.get(key)
-            if opt is None or opt.yielding:
-                opt = self.options[key.as_root()]
-        else:
-            opt = self.options[key]
-            if opt.yielding:
-                opt = self.options.get(key.as_root(), opt)
-        if self.overrides:
-            override_value = self.overrides.get(key.as_root())
-            if override_value is not None:
-                opt = copy.copy(opt)
-                opt.set_value(override_value)
-        return opt
-
-    def __iter__(self) -> T.Iterator[OptionKey]:
-        return iter(self.options)
-
-    def __len__(self) -> int:
-        return len(self.options)
 
 class DependencyCacheType(enum.Enum):
 
@@ -769,7 +734,9 @@ class CoreData:
 
         raise MesonException(f'Tried to get unknown builtin option {str(key)}')
 
-    def get_option_for_target(self, target: BuildTarget, key: OptionKey) -> T.Union[T.List[str], str, int, bool, WrapMode]:
+    def get_option_for_target(self, target: BuildTarget, key: T.Union[str, OptionKey]) -> T.Union[T.List[str], str, int, bool, WrapMode]:
+        if isinstance(key, str):
+            key = OptionKey(key)
         override = target.get_raw_override(key.name)
         if override is not None:
             # FIXME validate that the value is good.
