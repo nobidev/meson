@@ -1,0 +1,10 @@
+/ci/
+/cross/
+/docs/
+/graphics/
+/manual tests/
+/test cases/
+/tools/
+/unittests/
+/*.egg-info/
+/Dockerfile
